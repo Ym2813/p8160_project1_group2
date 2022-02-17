@@ -11,3 +11,77 @@ Encoding: UTF-8
 
 RnwWeave: Sweave
 LaTeX: pdfLaTeX
+
+```{r}
+library(flexsurv)
+library(coxed)
+library(survival)
+library(simsurv)
+library(MASS)
+library(tidyverse)
+library(nph)
+```
+
+
+## Proportional hazard model
+```{r}
+set.seed(123456)
+N = 1000 ## number of patients/observations
+covs = data.frame(id = 1:N,
+                  trt = rbinom(N, 1, 0.5)) ## Covariates of each observation
+
+s1 = simsurv(lambdas = 0.1, gammas = 1.5, x = covs, betas = c(trt = -0.5), maxt = 100) ## Simulate survival data
+
+dat = merge(covs, s1)
+mod <- flexsurvspline(Surv(eventtime, status) ~ trt, data = dat) ## Create survival object
+
+plot(survfit(Surv(eventtime, status) ~ trt, data = dat), main = "Proportional model", ylab = "Survival probability",
+     xlab = "Time") 
+
+logrank.test(dat$eventtime, dat$status, dat$trt, rho = 0, gamma = 0 )
+logrank.test(dat$eventtime, dat$status, dat$trt, rho = 0, gamma = 1 )
+logrank.test(dat$eventtime, dat$status, dat$trt, rho = 1, gamma = 0 )
+logrank.maxtest(dat$eventtime, dat$status, dat$trt)
+```
+
+
+Log-rank test: the Chi-Squared test statistic is 56.6 with 1 degree of freedom and the corresponding p-value is 5.4e-14, we reject the null hypothesis.
+
+Log-rank test for a late effect: the Chi-Squared test statistic is 47.4 with 1 degree of freedom and the corresponding p-value is 6.0e-12, we reject the null hypothesis.
+
+Log-rank test for an early effect: the Chi-Squared test statistic is 40 with 1 degree of freedom and the corresponding p-value is 2.5e-10, we reject the null hypothesis.
+
+All three log-rank tests successfully reject the null hypothesis. 
+
+
+## Non-proportional hazard model
+```{r}
+set.seed(123456)
+N = 1000 ## number of patients/observations
+covs2 = data.frame(id = 1:N,
+                  trt = rbinom(N, 1, 0.5)) ## Covariates of each observation
+
+pars_tde = c(trt = 0.4)
+
+s2 <- simsurv(lambdas = 0.1, gammas = 1.5, x = covs, betas = c(trt = -0.5), tde = pars_tde, tdefunction = 'log') 
+
+dat2 =  merge(s2, covs2)
+mod2 <- flexsurvspline(Surv(eventtime, status) ~ trt, data = dat2)
+
+plot(survfit(Surv(eventtime, status) ~ trt, data = dat2), main = "Non-proportional model", ylab = "Survival probability",
+     xlab = "Time") 
+
+logrank.test(dat2$eventtime, dat2$status, dat2$trt, rho = 0, gamma = 0 )
+logrank.test(dat2$eventtime, dat2$status, dat2$trt, rho = 0, gamma = 1 )
+logrank.test(dat2$eventtime, dat2$status, dat2$trt, rho = 1, gamma = 0 )
+logrank.maxtest(dat2$eventtime, dat2$status, dat2$trt)
+```
+
+
+Log-rank test: the Chi-Squared test statistic is 0.0721 with 1 degree of freedom and the corresponding p-value is 0.7883, so we fail to reject the null hypothesis.
+
+Log-rank test for a late effect: the Chi-Squared test statistic is 3.1 with 1 degree of freedom and the corresponding p-value is 0.0781, so we fail to reject the null hypothesis.
+
+Log-rank test for an early effect: the Chi-Squared test statistic is 4.9 with 1 degree of freedom and the corresponding p-value is 0.0276, so we reject the null hypothesis.
+
+Therefore, when the hazard model is time-dependent, only the log-rank test for an early effect successfully rejects the null hypothesis. 
