@@ -23,7 +23,7 @@ N = 1000 ## number of patients/observations
 covs = data.frame(id = 1:N,
                   trt = rbinom(N, 1, 0.5)) ## Covariates of each observation
 
-s1 = simsurv(lambdas = 0.1, gammas = 1.5, x = covs, betas = c(trt = -0.5), maxt = 100) ## Simulate survival data
+s1 = simsurv(lambdas = 0.1, gammas = 1.5, x = covs, maxt = 5) ## Simulate survival data
 
 dat = merge(covs, s1)
 mod <- flexsurvspline(Surv(eventtime, status) ~ trt, data = dat) ## Create survival object
@@ -56,7 +56,7 @@ covs2 = data.frame(id = 1:N,
 
 pars_tde = c(trt = 0.4)
 
-s2 <- simsurv(lambdas = 0.1, gammas = 1.5, x = covs, betas = c(trt = -0.5), tde = pars_tde, tdefunction = 'log') 
+s2 <- simsurv(lambdas = 0.1, gammas = 1.5, x = covs, tde = pars_tde, tdefunction = 'log',maxt = 5) 
 
 dat2 =  merge(s2, covs2)
 mod2 <- flexsurvspline(Surv(eventtime, status) ~ trt, data = dat2)
