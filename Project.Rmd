@@ -1,11 +1,9 @@
 ---
 title: "Project"
-author: "Anna Ma"
-date: "2/18/2022"
-output: html_document
+output: pdf_document
 ---
 
-```{r}
+```{r, message=FALSE}
 library(flexsurv)
 library(coxed)
 library(survival)
@@ -13,17 +11,18 @@ library(simsurv)
 library(MASS)
 library(tidyverse)
 library(nph)
+library(pwr)
 ```
 
-
 ## Proportional hazard model
+High right-censoring, maxt = 5
 ```{r}
 set.seed(123456)
 N = 1000 ## number of patients/observations
 covs = data.frame(id = 1:N,
                   trt = rbinom(N, 1, 0.5)) ## Covariates of each observation
 
-s1 = simsurv(lambdas = 0.1, gammas = 1.5, x = covs, maxt = 5) ## Simulate survival data
+s1 = simsurv(lambdas = 0.1, gammas = 1.5, x = covs, betas = c(trt = -0.5), maxt = 5) ## Simulate survival data
 
 dat = merge(covs, s1)
 mod <- flexsurvspline(Surv(eventtime, status) ~ trt, data = dat) ## Create survival object
@@ -35,19 +34,125 @@ logrank.test(dat$eventtime, dat$status, dat$trt, rho = 0, gamma = 0 )
 logrank.test(dat$eventtime, dat$status, dat$trt, rho = 0, gamma = 1 )
 logrank.test(dat$eventtime, dat$status, dat$trt, rho = 1, gamma = 0 )
 logrank.maxtest(dat$eventtime, dat$status, dat$trt)
+
+dat1_0 = dat %>% 
+  filter(trt == 0)
+dat1_1 = dat %>% 
+  filter(trt == 1)
+mu1 = mean(dat1_0$eventtime)
+mu2 = mean(dat1_1$eventtime)
+
+Var = var(dat$eventtime)
+
+H = (mu1-mu2)/Var
+
+pwr = pwr.t2n.test(n1 = nrow(dat1_0), n2 = nrow(dat1_1), d = H, sig.level = 0.05)
+
+type2e = 1 - pwr$power
 ```
 
+Log-rank test: the Chi-Squared test statistic is 32.7 with 1 degree of freedom and the corresponding p-value is 1.1e-8, we reject the null hypothesis.
 
-Log-rank test: the Chi-Squared test statistic is 56.6 with 1 degree of freedom and the corresponding p-value is 5.4e-14, we reject the null hypothesis.
+Log-rank test for a late effect: the Chi-Squared test statistic is 283 with 1 degree of freedom and the corresponding p-value is 6.1e-8, we reject the null hypothesis.
 
-Log-rank test for a late effect: the Chi-Squared test statistic is 47.4 with 1 degree of freedom and the corresponding p-value is 6.0e-12, we reject the null hypothesis.
+Log-rank test for an early effect: the Chi-Squared test statistic is 62 with 1 degree of freedom and the corresponding p-value is 9.4e-10, we reject the null hypothesis.
 
-Log-rank test for an early effect: the Chi-Squared test statistic is 40 with 1 degree of freedom and the corresponding p-value is 2.5e-10, we reject the null hypothesis.
+All three log-rank tests successfully reject the null hypothesis. The typr I errors are the p-values of each test. The type II error is 0.136.
 
-All three log-rank tests successfully reject the null hypothesis. 
+
+Lower right-censoring: maxt = 7.5
+```{r}
+set.seed(123456)
+N = 1000 ## number of patients/observations
+covs = data.frame(id = 1:N,
+                  trt = rbinom(N, 1, 0.5)) ## Covariates of each observation
+
+s1 = simsurv(lambdas = 0.1, gammas = 1.5, x = covs, betas = c(trt = -0.5), maxt = 7.5) ## Simulate survival data
+
+dat = merge(covs, s1)
+mod <- flexsurvspline(Surv(eventtime, status) ~ trt, data = dat) ## Create survival object
+
+plot(survfit(Surv(eventtime, status) ~ trt, data = dat), main = "Proportional model", ylab = "Survival probability",
+     xlab = "Time") 
+
+logrank.test(dat$eventtime, dat$status, dat$trt, rho = 0, gamma = 0 )
+logrank.test(dat$eventtime, dat$status, dat$trt, rho = 0, gamma = 1 )
+logrank.test(dat$eventtime, dat$status, dat$trt, rho = 1, gamma = 0 )
+logrank.maxtest(dat$eventtime, dat$status, dat$trt)
+
+dat1_0 = dat %>% 
+  filter(trt == 0)
+dat1_1 = dat %>% 
+  filter(trt == 1)
+mu1 = mean(dat1_0$eventtime)
+mu2 = mean(dat1_1$eventtime)
+
+Var = var(dat$eventtime)
+
+H = (mu1-mu2)/Var
+
+pwr = pwr.t2n.test(n1 = nrow(dat1_0), n2 = nrow(dat1_1), d = H, sig.level = 0.05)
+
+type2e = 1 - pwr$power
+```
+
+Log-rank test: the Chi-Squared test statistic is 52,1 with 1 degree of freedom and the corresponding p-value is 5.3e-13, we reject the null hypothesis.
+
+Log-rank test for a late effect: the Chi-Squared test statistic is 258 with 1 degree of freedom and the corresponding p-value is 2.0e-12, we reject the null hypothesis.
+
+Log-rank test for an early effect: the Chi-Squared test statistic is 122 with 1 degree of freedom and the corresponding p-value is 5.2e-10, we reject the null hypothesis.
+
+All three log-rank tests successfully reject the null hypothesis. The typr I errors are the p-values of each test. The type II error is 0.270.
+
+
+Even lower right-censoring: maxt = 10
+```{r}
+set.seed(123456)
+N = 1000 ## number of patients/observations
+covs = data.frame(id = 1:N,
+                  trt = rbinom(N, 1, 0.5)) ## Covariates of each observation
+
+s1 = simsurv(lambdas = 0.1, gammas = 1.5, x = covs, betas = c(trt = -0.5), maxt = 10) ## Simulate survival data
+
+dat = merge(covs, s1)
+mod <- flexsurvspline(Surv(eventtime, status) ~ trt, data = dat) ## Create survival object
+
+plot(survfit(Surv(eventtime, status) ~ trt, data = dat), main = "Proportional model", ylab = "Survival probability",
+     xlab = "Time") 
+
+logrank.test(dat$eventtime, dat$status, dat$trt, rho = 0, gamma = 0 )
+logrank.test(dat$eventtime, dat$status, dat$trt, rho = 0, gamma = 1 )
+logrank.test(dat$eventtime, dat$status, dat$trt, rho = 1, gamma = 0 )
+logrank.maxtest(dat$eventtime, dat$status, dat$trt)
+
+dat1_0 = dat %>% 
+  filter(trt == 0)
+dat1_1 = dat %>% 
+  filter(trt == 1)
+mu1 = mean(dat1_0$eventtime)
+mu2 = mean(dat1_1$eventtime)
+
+Var = var(dat$eventtime)
+
+H = (mu1-mu2)/Var
+
+pwr = pwr.t2n.test(n1 = nrow(dat1_0), n2 = nrow(dat1_1), d = H, sig.level = 0.05)
+
+type2e = 1 - pwr$power
+```
+
+Log-rank test: the Chi-Squared test statistic is 52.4 with 1 degree of freedom and the corresponding p-value is 4.5e-13, we reject the null hypothesis.
+
+Log-rank test for a late effect: the Chi-Squared test statistic is 202 with 1 degree of freedom and the corresponding p-value is 4.3e-11, we reject the null hypothesis.
+
+Log-rank test for an early effect: the Chi-Squared test statistic is 137 with 1 degree of freedom and the corresponding p-value is 3.3e-10, we reject the null hypothesis.
+
+All three log-rank tests successfully reject the null hypothesis. The typr I errors are the p-values of each test. The type II error is 0.365.
+
 
 
 ## Non-proportional hazard model
+High right-censoring, maxt = 5
 ```{r}
 set.seed(123456)
 N = 1000 ## number of patients/observations
@@ -56,7 +161,7 @@ covs2 = data.frame(id = 1:N,
 
 pars_tde = c(trt = 0.4)
 
-s2 <- simsurv(lambdas = 0.1, gammas = 1.5, x = covs, tde = pars_tde, tdefunction = 'log',maxt = 5) 
+s2 <- simsurv(lambdas = 0.1, gammas = 1.5, x = covs, betas = c(trt = -0.5), tde = pars_tde, tdefunction = 'log', maxt = 5) 
 
 dat2 =  merge(s2, covs2)
 mod2 <- flexsurvspline(Surv(eventtime, status) ~ trt, data = dat2)
@@ -68,13 +173,125 @@ logrank.test(dat2$eventtime, dat2$status, dat2$trt, rho = 0, gamma = 0 )
 logrank.test(dat2$eventtime, dat2$status, dat2$trt, rho = 0, gamma = 1 )
 logrank.test(dat2$eventtime, dat2$status, dat2$trt, rho = 1, gamma = 0 )
 logrank.maxtest(dat2$eventtime, dat2$status, dat2$trt)
+
+dat2_0 = dat2 %>% 
+  filter(trt == 0)
+dat2_1 = dat2 %>% 
+  filter(trt == 1)
+
+mu1 = mean(dat2_0$eventtime)
+mu2 = mean(dat2_1$eventtime)
+
+Var = var(dat2$eventtime)
+
+H = (mu1-mu2)/Var
+
+pwr = pwr.t2n.test(n1 = nrow(dat2_0), n2 = nrow(dat2_1), d = H, sig.level = 0.05)
+
+type2e = 1 - pwr$power
 ```
 
+Log-rank test: the Chi-Squared test statistic is 2.87 with 1 degree of freedom and the corresponding p-value is 0.09, so we fail to reject the null hypothesis.
 
-Log-rank test: the Chi-Squared test statistic is 0.0721 with 1 degree of freedom and the corresponding p-value is 0.7883, so we fail to reject the null hypothesis.
+Log-rank test for a late effect: the Chi-Squared test statistic is 19.1 with 1 degree of freedom and the corresponding p-value is 0.98, so we fail to reject the null hypothesis.
 
-Log-rank test for a late effect: the Chi-Squared test statistic is 3.1 with 1 degree of freedom and the corresponding p-value is 0.0781, so we fail to reject the null hypothesis.
+Log-rank test for an early effect: the Chi-Squared test statistic is 5.99 with 1 degree of freedom and the corresponding p-value is 0.01, so we reject the null hypothesis.
 
-Log-rank test for an early effect: the Chi-Squared test statistic is 4.9 with 1 degree of freedom and the corresponding p-value is 0.0276, so we reject the null hypothesis.
+Therefore, when the hazard model is time-dependent, only the log-rank test for an early effect successfully rejects the null hypothesis. The typr I errors are the p-values of each test. The type II error is 0.538.
 
-Therefore, when the hazard model is time-dependent, only the log-rank test for an early effect successfully rejects the null hypothesis. 
+
+Lower right-censoring, maxt = 7.5
+```{r}
+set.seed(123456)
+N = 1000 ## number of patients/observations
+covs2 = data.frame(id = 1:N,
+                  trt = rbinom(N, 1, 0.5)) ## Covariates of each observation
+
+pars_tde = c(trt = 0.4)
+
+s2 <- simsurv(lambdas = 0.1, gammas = 1.5, x = covs, betas = c(trt = -0.5), tde = pars_tde, tdefunction = 'log', maxt = 7.5) 
+
+dat2 =  merge(s2, covs2)
+mod2 <- flexsurvspline(Surv(eventtime, status) ~ trt, data = dat2)
+
+plot(survfit(Surv(eventtime, status) ~ trt, data = dat2), main = "Non-proportional model", ylab = "Survival probability",
+     xlab = "Time") 
+
+logrank.test(dat2$eventtime, dat2$status, dat2$trt, rho = 0, gamma = 0 )
+logrank.test(dat2$eventtime, dat2$status, dat2$trt, rho = 0, gamma = 1 )
+logrank.test(dat2$eventtime, dat2$status, dat2$trt, rho = 1, gamma = 0 )
+logrank.maxtest(dat2$eventtime, dat2$status, dat2$trt)
+
+dat2_0 = dat2 %>% 
+  filter(trt == 0)
+dat2_1 = dat2 %>% 
+  filter(trt == 1)
+
+mu1 = mean(dat2_0$eventtime)
+mu2 = mean(dat2_1$eventtime)
+
+Var = var(dat2$eventtime)
+
+H = (mu1-mu2)/Var
+
+pwr = pwr.t2n.test(n1 = nrow(dat2_0), n2 = nrow(dat2_1), d = H, sig.level = 0.05)
+
+type2e = 1 - pwr$power
+```
+
+Log-rank test: the Chi-Squared test statistic is 0.805 with 1 degree of freedom and the corresponding p-value is 0.37, so we fail to reject the null hypothesis.
+
+Log-rank test for a late effect: the Chi-Squared test statistic is 3.03 with 1 degree of freedom and the corresponding p-value is 0.35, so we fail to reject the null hypothesis.
+
+Log-rank test for an early effect: the Chi-Squared test statistic is 2.16 with 1 degree of freedom and the corresponding p-value is 0.02, so we reject the null hypothesis.
+
+Therefore, when the hazard model is time-dependent, only the log-rank test for an early effect successfully rejects the null hypothesis. The typr I errors are the p-values of each test. The type II error is 0.838.
+
+
+Even lower right-censoring, maxt = 10
+```{r}
+set.seed(123456)
+N = 1000 ## number of patients/observations
+covs2 = data.frame(id = 1:N,
+                  trt = rbinom(N, 1, 0.5)) ## Covariates of each observation
+
+pars_tde = c(trt = 0.4)
+
+s2 <- simsurv(lambdas = 0.1, gammas = 1.5, x = covs, betas = c(trt = -0.5), tde = pars_tde, tdefunction = 'log', maxt = 10) 
+
+dat2 =  merge(s2, covs2)
+mod2 <- flexsurvspline(Surv(eventtime, status) ~ trt, data = dat2)
+
+plot(survfit(Surv(eventtime, status) ~ trt, data = dat2), main = "Non-proportional model", ylab = "Survival probability",
+     xlab = "Time") 
+
+logrank.test(dat2$eventtime, dat2$status, dat2$trt, rho = 0, gamma = 0 )
+logrank.test(dat2$eventtime, dat2$status, dat2$trt, rho = 0, gamma = 1 )
+logrank.test(dat2$eventtime, dat2$status, dat2$trt, rho = 1, gamma = 0 )
+logrank.maxtest(dat2$eventtime, dat2$status, dat2$trt)
+
+dat2_0 = dat2 %>% 
+  filter(trt == 0)
+dat2_1 = dat2 %>% 
+  filter(trt == 1)
+
+mu1 = mean(dat2_0$eventtime)
+mu2 = mean(dat2_1$eventtime)
+
+Var = var(dat2$eventtime)
+
+H = (mu1-mu2)/Var
+
+pwr = pwr.t2n.test(n1 = nrow(dat2_0), n2 = nrow(dat2_1), d = H, sig.level = 0.05)
+
+type2e = 1 - pwr$power
+```
+
+Log-rank test: the Chi-Squared test statistic is 0.0755 with 1 degree of freedom and the corresponding p-value is 0.79, so we fail to reject the null hypothesis.
+
+Log-rank test for a late effect: the Chi-Squared test statistic is 0.241 with 1 degree of freedom and the corresponding p-value is 0.07, so we fail to reject the null hypothesis.
+
+Log-rank test for an early effect: the Chi-Squared test statistic is 0.22 with 1 degree of freedom and the corresponding p-value is 0.03, so we reject the null hypothesis.
+
+Therefore, when the hazard model is time-dependent, only the log-rank test for an early effect successfully rejects the null hypothesis. The typr I errors are the p-values of each test. The type II error is 0.908.
+
